@@ -2,6 +2,7 @@ import { createMcpHandler } from 'mcp-handler';
 import { registerAllGarminTools } from '../../../src/server';
 
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const handler = createMcpHandler(
   (server) => {

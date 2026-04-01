@@ -1,7 +1,4 @@
 {
-  "functions": {
-    "app/api/mcp/route.ts": {
-      "maxDuration": 60
-    }
-  }
+  "framework": "nextjs",
+  "buildCommand": "next build"
 }
