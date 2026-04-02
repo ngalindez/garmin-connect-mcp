@@ -14,6 +14,7 @@ import {
   registerWellnessTools,
   registerChallengeTools,
   registerWriteTools,
+  registerWorkoutTools,
 } from './tools';
 
 export function registerAllGarminTools(server: McpServer): void {
@@ -44,6 +45,7 @@ export function registerAllGarminTools(server: McpServer): void {
   registerWellnessTools(server, client);
   registerChallengeTools(server, client);
   registerWriteTools(server, client);
+  registerWorkoutTools(server, client);
 }
 
 export function createGarminServer(): McpServer {

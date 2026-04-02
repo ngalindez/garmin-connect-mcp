@@ -750,4 +750,91 @@ export class GarminClient {
       { method: 'PUT' },
     );
   }
+
+  async createWorkout(payload: {
+    workoutName: string;
+    sportType: string;
+    steps: Array<{
+      type: string;
+      stepOrder: number;
+      stepType: string;
+      endConditionType: string;
+      endConditionValue?: number;
+      targetType?: string;
+      targetValueLow?: number;
+      targetValueHigh?: number;
+      description?: string;
+    }>;
+    description?: string;
+  }): Promise<unknown> {
+    const sportTypeMap: Record<string, { sportTypeId: number; sportTypeKey: string }> = {
+      running: { sportTypeId: 1, sportTypeKey: 'running' },
+      cycling: { sportTypeId: 2, sportTypeKey: 'cycling' },
+      swimming: { sportTypeId: 5, sportTypeKey: 'swimming' },
+      walking: { sportTypeId: 9, sportTypeKey: 'walking' },
+      hiking: { sportTypeId: 3, sportTypeKey: 'hiking' },
+      strength_training: { sportTypeId: 4, sportTypeKey: 'strength_training' },
+      cardio_training: { sportTypeId: 10, sportTypeKey: 'cardio_training' },
+      other: { sportTypeId: 99, sportTypeKey: 'other' },
+    };
+
+    const sport = sportTypeMap[payload.sportType] ?? sportTypeMap['other']!;
+
+    const workoutSegments = [
+      {
+        segmentOrder: 1,
+        sportType: {
+          sportTypeId: sport.sportTypeId,
+          sportTypeKey: sport.sportTypeKey,
+        },
+        workoutSteps: payload.steps.map((step) => ({
+          type: step.type,
+          stepOrder: step.stepOrder,
+          stepType: {
+            stepTypeId: 0,
+            stepTypeKey: step.stepType,
+          },
+          endCondition: {
+            conditionTypeId: 0,
+            conditionTypeKey: step.endConditionType,
+          },
+          endConditionValue: step.endConditionValue ?? null,
+          targetType: step.targetType
+            ? { workoutTargetTypeId: 0, workoutTargetTypeKey: step.targetType }
+            : null,
+          targetValueOne: step.targetValueLow ?? null,
+          targetValueTwo: step.targetValueHigh ?? null,
+          description: step.description ?? null,
+        })),
+      },
+    ];
+
+    return this.request(WORKOUT_ENDPOINT, {
+      method: 'POST',
+      body: {
+        workoutName: payload.workoutName,
+        description: payload.description ?? null,
+        sportType: {
+          sportTypeId: sport.sportTypeId,
+          sportTypeKey: sport.sportTypeKey,
+        },
+        workoutSegments,
+      },
+    });
+  }
+
+  async deleteWorkout(workoutId: string): Promise<unknown> {
+    return this.request(`${WORKOUT_ENDPOINT}/${workoutId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  async scheduleWorkout(workoutId: string, date: string): Promise<unknown> {
+    return this.request(`${SCHEDULED_WORKOUT_ENDPOINT}/${workoutId}`, {
+      method: 'POST',
+      body: {
+        date,
+      },
+    });
+  }
 }
