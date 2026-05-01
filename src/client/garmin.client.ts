@@ -770,44 +770,95 @@ export class GarminClient {
     const sportTypeMap: Record<string, { sportTypeId: number; sportTypeKey: string }> = {
       running: { sportTypeId: 1, sportTypeKey: 'running' },
       cycling: { sportTypeId: 2, sportTypeKey: 'cycling' },
-      swimming: { sportTypeId: 5, sportTypeKey: 'swimming' },
-      walking: { sportTypeId: 9, sportTypeKey: 'walking' },
       hiking: { sportTypeId: 3, sportTypeKey: 'hiking' },
       strength_training: { sportTypeId: 4, sportTypeKey: 'strength_training' },
+      swimming: { sportTypeId: 4, sportTypeKey: 'lap_swimming' },
+      walking: { sportTypeId: 9, sportTypeKey: 'walking' },
       cardio_training: { sportTypeId: 10, sportTypeKey: 'cardio_training' },
       other: { sportTypeId: 99, sportTypeKey: 'other' },
     };
 
-    const sport = sportTypeMap[payload.sportType] ?? sportTypeMap['other']!;
+    const stepTypeMap: Record<string, { stepTypeId: number; stepTypeKey: string }> = {
+      warmup: { stepTypeId: 1, stepTypeKey: 'warmup' },
+      cooldown: { stepTypeId: 2, stepTypeKey: 'cooldown' },
+      interval: { stepTypeId: 3, stepTypeKey: 'interval' },
+      recovery: { stepTypeId: 4, stepTypeKey: 'recovery' },
+      rest: { stepTypeId: 5, stepTypeKey: 'rest' },
+      repeat: { stepTypeId: 6, stepTypeKey: 'repeat' },
+      other: { stepTypeId: 7, stepTypeKey: 'other' },
+    };
 
-    const workoutSegments = [
-      {
-        segmentOrder: 1,
-        sportType: {
-          sportTypeId: sport.sportTypeId,
-          sportTypeKey: sport.sportTypeKey,
+    const conditionTypeMap: Record<string, { conditionTypeId: number; conditionTypeKey: string }> = {
+      'lap.button': { conditionTypeId: 1, conditionTypeKey: 'lap.button' },
+      time: { conditionTypeId: 2, conditionTypeKey: 'time' },
+      distance: { conditionTypeId: 3, conditionTypeKey: 'distance' },
+      calories: { conditionTypeId: 4, conditionTypeKey: 'calories' },
+      iterations: { conditionTypeId: 7, conditionTypeKey: 'iterations' },
+      'fixed.rest': { conditionTypeId: 8, conditionTypeKey: 'fixed.rest' },
+    };
+
+    const targetTypeMap: Record<string, { workoutTargetTypeId: number; workoutTargetTypeKey: string }> = {
+      'no.target': { workoutTargetTypeId: 1, workoutTargetTypeKey: 'no.target' },
+      'power.zone': { workoutTargetTypeId: 2, workoutTargetTypeKey: 'power.zone' },
+      cadence: { workoutTargetTypeId: 3, workoutTargetTypeKey: 'cadence' },
+      'heart.rate.zone': { workoutTargetTypeId: 4, workoutTargetTypeKey: 'heart.rate.zone' },
+      'speed.zone': { workoutTargetTypeId: 5, workoutTargetTypeKey: 'speed.zone' },
+      'pace.zone': { workoutTargetTypeId: 6, workoutTargetTypeKey: 'pace.zone' },
+    };
+
+    const intensityMap: Record<string, string> = {
+      warmup: 'WARMUP',
+      cooldown: 'COOLDOWN',
+      interval: 'INTERVAL',
+      recovery: 'RECOVERY',
+      rest: 'REST',
+      repeat: 'INTERVAL',
+      other: 'INTERVAL',
+    };
+
+    const sport = sportTypeMap[payload.sportType] ?? sportTypeMap['other']!;
+    const noTarget = targetTypeMap['no.target']!;
+
+    const workoutSteps = payload.steps.map((step) => {
+      const stepType = stepTypeMap[step.stepType] ?? stepTypeMap['other']!;
+      const endCondition = conditionTypeMap[step.endConditionType] ?? conditionTypeMap['lap.button']!;
+      const resolvedTargetKey = step.targetType ?? 'no.target';
+      const target = targetTypeMap[resolvedTargetKey] ?? noTarget;
+      const isZoneTarget = resolvedTargetKey === 'heart.rate.zone' || resolvedTargetKey === 'power.zone';
+
+      const workoutStep: Record<string, unknown> = {
+        type: step.type,
+        stepId: null,
+        stepOrder: step.stepOrder,
+        childStepId: null,
+        intensity: intensityMap[step.stepType] ?? 'INTERVAL',
+        description: step.description ?? null,
+        stepType: {
+          stepTypeId: stepType.stepTypeId,
+          stepTypeKey: stepType.stepTypeKey,
         },
-        workoutSteps: payload.steps.map((step) => ({
-          type: step.type,
-          stepOrder: step.stepOrder,
-          stepType: {
-            stepTypeId: 0,
-            stepTypeKey: step.stepType,
-          },
-          endCondition: {
-            conditionTypeId: 0,
-            conditionTypeKey: step.endConditionType,
-          },
-          endConditionValue: step.endConditionValue ?? null,
-          targetType: step.targetType
-            ? { workoutTargetTypeId: 0, workoutTargetTypeKey: step.targetType }
-            : null,
-          targetValueOne: step.targetValueLow ?? null,
-          targetValueTwo: step.targetValueHigh ?? null,
-          description: step.description ?? null,
-        })),
-      },
-    ];
+        endCondition: {
+          conditionTypeId: endCondition.conditionTypeId,
+          conditionTypeKey: endCondition.conditionTypeKey,
+        },
+        endConditionValue: step.endConditionValue ?? null,
+        targetType: {
+          workoutTargetTypeId: target.workoutTargetTypeId,
+          workoutTargetTypeKey: target.workoutTargetTypeKey,
+        },
+        targetValueOne: null,
+        targetValueTwo: null,
+      };
+
+      if (isZoneTarget && step.targetValueLow != null) {
+        workoutStep.zoneNumber = step.targetValueLow;
+      } else if (!isZoneTarget && target.workoutTargetTypeKey !== 'no.target') {
+        workoutStep.targetValueOne = step.targetValueLow ?? null;
+        workoutStep.targetValueTwo = step.targetValueHigh ?? null;
+      }
+
+      return workoutStep;
+    });
 
     return this.request(WORKOUT_ENDPOINT, {
       method: 'POST',
@@ -818,7 +869,16 @@ export class GarminClient {
           sportTypeId: sport.sportTypeId,
           sportTypeKey: sport.sportTypeKey,
         },
-        workoutSegments,
+        workoutSegments: [
+          {
+            segmentOrder: 1,
+            sportType: {
+              sportTypeId: sport.sportTypeId,
+              sportTypeKey: sport.sportTypeKey,
+            },
+            workoutSteps,
+          },
+        ],
       },
     });
   }
