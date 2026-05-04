@@ -59,11 +59,11 @@ export const workoutStepSchema = z.object({
   targetValueLow: z
     .number()
     .optional()
-    .describe('Lower bound of target range'),
+    .describe('For zone targets (heart.rate.zone, power.zone): the zone number (1-5). For pace/speed/cadence: lower bound of range'),
   targetValueHigh: z
     .number()
     .optional()
-    .describe('Upper bound of target range'),
+    .describe('Upper bound of target range. Not used for zone targets'),
   description: z.string().optional().describe('Optional description or notes for this step'),
 });
 
